@@ -137,7 +137,7 @@ loginBtn.onclick = login;
       signInWithEmailAndPassword(auth, email, password)
         .then((userCredential) => {
           // Redirect to dashboard
-          window.location.href = "admin/dashboard.html";
+          window.location.href = "dashboard.html";
         })
         .catch((error) => {
           errorMsg.innerText = error.message;
