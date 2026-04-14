@@ -1,0 +1,117 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Questions</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f5f7fb; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:#1e3a8a; color:#fff; }
+    header a { background:#fff; color:#1e3a8a; padding:8px 12px; text-decoration:none; border-radius:6px; }.container { padding:20px; }
+
+.question { background:#fff; padding:15px; border-radius:10px; margin-bottom:15px; box-shadow:0 2px 8px rgba(0,0,0,0.1); }
+.question h4 { margin:0 0 10px; }
+
+input[type=text] { width:100%; padding:8px; margin:5px 0; border-radius:6px; border:1px solid #ccc; }
+
+.options { margin-top:10px; }
+.option { display:flex; align-items:center; gap:8px; margin-bottom:5px; }
+
+button { padding:6px 10px; border:none; border-radius:6px; cursor:pointer; }
+.add { background:#16a34a; color:#fff; }
+.delete { background:#dc2626; color:#fff; }
+.save { background:#2563eb; color:#fff; margin-top:10px; }
+
+  </style>
+</head>
+<body><header>
+  <h2>Questions</h2>
+  <a href="dashboard.html">Back</a>
+</header><div class="container">
+  <button class="add" id="addQuestion">+ Add Question</button>
+  <div id="questionsContainer"></div>
+  <button class="save" id="saveBtn">Save</button>
+</div><script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWe6LmmWUGlWHv0zb13I6d0bGODfoRQtQ",
+    authDomain: "nagari-polyclinic.firebaseapp.com",
+    projectId: "nagari-polyclinic",
+    storageBucket: "nagari-polyclinic.firebasestorage.app",
+    messagingSenderId: "145295689654",
+    appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
+    measurementId: "G-XL6Y1PB0N5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const params = new URLSearchParams(window.location.search);
+  const testId = params.get('testId');
+
+  const container = document.getElementById('questionsContainer');
+  const addBtn = document.getElementById('addQuestion');
+  const saveBtn = document.getElementById('saveBtn');
+
+  let questions = [];
+
+  function render() {
+    container.innerHTML = '';
+
+    questions.forEach((q, qi) => {
+      const div = document.createElement('div');
+      div.className = 'question';
+
+      div.innerHTML = `
+        <h4>Question ${qi + 1}</h4>
+        <textarea placeholder="Prompt" rows="3" onchange="updatePrompt(${qi}, this.value)">${q.prompt}</textarea><div class="options">
+      ${q.options.map((opt, oi) => `
+        <div class="option">
+          <input type="radio" name="answer-${qi}" ${q.answer === oi ? 'checked' : ''} onclick="setAnswer(${qi}, ${oi})" />
+          <textarea rows="2" onchange="updateOption(${qi}, ${oi}, this.value)">${opt}</textarea>
+          <button class="delete" onclick="deleteOption(${qi}, ${oi})">x</button>
+        </div>
+      `).join('')}
+    </div>
+
+    <button class="add" onclick="addOption(${qi})">+ Option</button>
+    <button class="delete" onclick="deleteQuestion(${qi})">Delete Question</button>
+  `;
+
+  container.appendChild(div);
+});
+
+}
+
+window.updatePrompt = (qi, val) => { questions[qi].prompt = val; };
+
+window.updateOption = (qi, oi, val) => { questions[qi].options[oi] = val; };
+
+window.setAnswer = (qi, oi) => { questions[qi].answer = oi; };
+
+window.addOption = (qi) => { questions[qi].options.push(''); render(); };
+
+window.deleteOption = (qi, oi) => { if (questions[qi].options.length === 1) return alert('At least one option required'); questions[qi].options.splice(oi, 1); if (questions[qi].answer === oi) questions[qi].answer = null; render(); };
+
+window.deleteQuestion = (qi) => { questions.splice(qi, 1); render(); };
+
+addBtn.onclick = () => { questions.push({ prompt:'', options:[''], answer:null }); render(); };
+
+async function load() { const ref = doc(db, 'questions', testId); const snap = await getDoc(ref); if (snap.exists()) { questions = snap.data().questions || []; } render(); }
+
+saveBtn.onclick = async () => { for (let q of questions) { if (!q.prompt) return alert('Prompt required'); if (q.answer === null) return alert('Answer must be selected'); }
+
+await setDoc(doc(db, 'questions', testId), {
+  testId,
+  questions
+});
+
+alert('Saved successfully');
+
+};
+
+load(); </script>
+
+</body>
+</html>

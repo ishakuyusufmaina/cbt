@@ -1,196 +1,160 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Admin Dashboard</title>
-
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DH CBT</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: Arial, sans-serif;
-    }
+    body { font-family: Arial, sans-serif; margin: 0; background:#f5f7fb; }
+    header { display:flex; justify-content:space-between; align-items:center; padding:15px 20px; background:#1e3a8a; color:#fff; }
+    header a { background:#fff; color:#1e3a8a; padding:8px 12px; text-decoration:none; border-radius:6px; }.filters { display:flex; gap:10px; padding:15px; background:#fff; flex-wrap:wrap; }
+select { padding:8px; border-radius:6px; border:1px solid #ccc; }
 
-    body {
-      display: flex;
-      height: 100vh;
-      background: #f4f6f9;
-    }
+.cards { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px,1fr)); gap:15px; padding:20px; }
 
-    /* Sidebar */
-    .sidebar {
-      width: 220px;
-      background: #2c3e50;
-      color: #fff;
-      padding: 20px;
-    }
+.card { background:#fff; padding:15px; border-radius:10px; box-shadow:0 2px 8px rgba(0,0,0,0.1); cursor:pointer; transition:0.2s; }
+.card:hover { transform:scale(1.02); }
 
-    .sidebar h2 {
-      margin-bottom: 20px;
-      text-align: center;
-    }
+.badge { display:inline-block; padding:4px 8px; border-radius:5px; font-size:12px; margin-right:5px; }
+.published { background:#16a34a; color:#fff; }
+.unpublished { background:#dc2626; color:#fff; }
 
-    .sidebar ul {
-      list-style: none;
-    }
+.status-upcoming { background:#2563eb; color:#fff; }
+.status-ongoing { background:#f59e0b; color:#fff; }
+.status-past { background:#6b7280; color:#fff; }
 
-    .sidebar ul li {
-      padding: 10px;
-      margin: 10px 0;
-      cursor: pointer;
-      border-radius: 5px;
-    }
+.links a { margin-right:10px; color:#1e3a8a; text-decoration:none; font-weight:bold; }
+.disabled { pointer-events:none; color:#aaa !important; }
 
-    .sidebar ul li:hover {
-      background: #34495e;
-    }
-
-    /* Main Content */
-    .main {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-    }
-
-    /* Header */
-    .header {
-      background: #fff;
-      padding: 15px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-    }
-
-    .header h1 {
-      font-size: 20px;
-      color: #333;
-    }
-
-    .logout-btn {
-      padding: 8px 15px;
-      border: none;
-      background: #e74c3c;
-      color: #fff;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .logout-btn:hover {
-      background: #c0392b;
-    }
-
-    /* Content */
-    .content {
-      padding: 20px;
-    }
-
-    .cards {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 20px;
-    }
-
-    .card {
-      background: #fff;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 5px 10px rgba(0,0,0,0.1);
-    }
-
-    .card h3 {
-      margin-bottom: 10px;
-      color: #555;
-    }
-
-    .card p {
-      font-size: 20px;
-      color: #2c3e50;
-      font-weight: bold;
-    }
   </style>
 </head>
-<body>
+<body><header>
+  <h2>DH CBT</h2>
+  <a href="create-test.html">+ Create New Test</a>
 
-  <!-- Sidebar -->
-  <div class="sidebar">
-    <h2>Admin</h2>
-    <ul>
-      <li>Dashboard</li>
-      <li>Users</li>
-      <li>Settings</li>
-    </ul>
-  </div>
+</header>
+ <a href="participants.html">Participants</a>
 
-  <!-- Main -->
-  <div class="main">
+  <div class="filters">
+  <select id="programFilter">
+    <option value="">All Programs</option>
+  </select>  <select id="publishFilter">
+    <option value="">All</option>
+    <option value="true">Published</option>
+    <option value="false">Unpublished</option>
+  </select>  <select id="statusFilter">
+    <option value="">All Status</option>
+    <option value="upcoming">Upcoming</option>
+    <option value="ongoing">Ongoing</option>
+    <option value="past">Past</option>
+  </select>
+</div>
+  <div class="cards" id="cardsContainer"></div>
+  <script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
 
-    <!-- Header -->
-    <div class="header">
-      <h1>Dashboard</h1>
-      <button class="logout-btn" onclick="logout()">Logout</button>
-    </div>
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWe6LmmWUGlWHv0zb13I6d0bGODfoRQtQ",
+    authDomain: "nagari-polyclinic.firebaseapp.com",
+    projectId: "nagari-polyclinic",
+    storageBucket: "nagari-polyclinic.firebasestorage.app",
+    messagingSenderId: "145295689654",
+    appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
+    measurementId: "G-XL6Y1PB0N5"
+  };
 
-    <!-- Content -->
-    <div class="content">
-      <div class="cards">
-        <div class="card">
-          <h3>Total Users</h3>
-          <p>120</p>
-        </div>
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
 
-        <div class="card">
-          <h3>Active Sessions</h3>
-          <p>45</p>
-        </div>
+  const programFilter = document.getElementById('programFilter');
+  const publishFilter = document.getElementById('publishFilter');
+  const statusFilter = document.getElementById('statusFilter');
+  const container = document.getElementById('cardsContainer');
 
-        <div class="card">
-          <h3>Revenue</h3>
-          <p>$2,500</p>
-        </div>
+  const programs = ["Program A", "Program B", "Program C"];
 
-        <div class="card">
-          <h3>Notifications</h3>
-          <p>8</p>
-        </div>
-      </div>
-    </div>
+  programs.forEach(p => {
+    const opt = document.createElement('option');
+    opt.value = p;
+    opt.textContent = p;
+    programFilter.appendChild(opt);
+  });
 
-  </div>
+  function getStatus(start, end) {
+    const now = Date.now();
+    if (now < start) return 'upcoming';
+    if (now >= start && now <= end) return 'ongoing';
+    return 'past';
+  }
 
-  <!-- Firebase SDK -->
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js"></script>
+  function formatDate(ts) {
+    return new Date(ts).toLocaleString();
+  }
 
-  <script>
-    // 🔥 Firebase Configuration (SAME as login page)
-    const firebaseConfig = {
-      apiKey: "YOUR_API_KEY",
-      authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
-      projectId: "YOUR_PROJECT_ID",
-      appId: "YOUR_APP_ID"
-    };
+  async function loadTests() {
+    container.innerHTML = "Loading...";
 
-    // Initialize Firebase
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
+    let q = collection(db, "tests");
+    let constraints = [];
 
-    // Protect Page (Redirect if not logged in)
-    auth.onAuthStateChanged((user) => {
-      if (!user) {
-        window.location.href = "../index.html";
-      }
-    });
-
-    // Logout Function
-    function logout() {
-      auth.signOut().then(() => {
-        window.location.href = "../index.html";
-      });
+    if (programFilter.value) {
+      constraints.push(where("for", "==", programFilter.value));
     }
-  </script>
 
-</body>
+    if (publishFilter.value) {
+      constraints.push(where("published", "==", publishFilter.value === 'true'));
+    }
+
+    const finalQuery = constraints.length ? query(q, ...constraints) : q;
+
+    const snapshot = await getDocs(finalQuery);
+
+    container.innerHTML = "";
+
+    snapshot.forEach(doc => {
+      const data = doc.data();
+      const id = doc.id;
+
+      const status = getStatus(data.startingTimestamp, data.endingTimestamp);
+
+      if (statusFilter.value && status !== statusFilter.value) return;
+
+      const card = document.createElement('div');
+      card.className = 'card';
+
+      card.innerHTML = `
+        <div>
+          <span class="badge ${data.published ? 'published' : 'unpublished'}">
+            ${data.published ? 'Published' : 'Unpublished'}
+          </span>
+          <span class="badge status-${status}">${status}</span>
+        </div>
+
+        <h3>${data.name}</h3>
+        <p><strong>Program:</strong> ${data.for}</p>
+        <p><strong>${status === 'upcoming' ? 'Starts' : 'Started'}:</strong> ${formatDate(data.startingTimestamp)}</p>
+        <p><strong>${status === 'past' ? 'Ended' : 'Ends'}:</strong> ${formatDate(data.endingTimestamp)}</p>
+
+        <div class="links">
+          <a href="questions.html?testId=${id}" class="${status === 'ongoing'}">Questions</a>
+          <a href="submissions.html?testId=${id}">Submissions</a>
+          <a href="test-proper.html?testId=${id}">Preview</a>
+
+        </div>
+      `;
+
+      card.addEventListener('click', () => {
+        window.location.href = `create-test.html?testId=${id}`;
+      });
+
+      container.appendChild(card);
+    });
+  }
+
+  programFilter.addEventListener('change', loadTests);
+  publishFilter.addEventListener('change', loadTests);
+  statusFilter.addEventListener('change', loadTests);
+
+  loadTests();
+</script></body>
 </html>

@@ -1,0 +1,261 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Create Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+    .container, fieldset {
+      max-width: 600px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+      box-sizing: border-box;
+      overflow: auto;
+    }
+    h2 {
+      text-align: center;
+    }
+    label, legend {
+      display: block;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+    input, select, textarea, fieldset{
+      width: 100%;
+      padding: 10px;
+      margin-top: 5px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    .checkbox {
+      display: flex;
+      align-items: center;
+      margin-top: 15px;
+    }
+    .checkbox input {
+      width: auto;
+      margin-right: 10px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      margin-top: 20px;
+      background: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      font-size: 16px;
+    }
+    button:hover {
+      background: #0056b3;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Create Test</h2><label>Name</label>
+<input type="text" id="name" placeholder="Enter test name">
+
+<label>Program</label>
+<select id="program"></select>
+
+<label>Start Time</label>
+<input type="datetime-local" id="start">
+
+<label>End Time</label>
+<input type="datetime-local" id="end">
+
+    <fieldset>
+      <legend>Duration</legend>
+      <label>Hour</label>
+      <input id="hour" value="00" type="number">
+      <label>Minute</label>
+      <input id="min" value="00" type="number">
+      <label>Second</label>
+      <input id="sec" value="00" type="number">
+    </fieldset>
+    <label>Password</label>
+<input type="number" id="psw">
+    
+    
+    <label>Pre-start Message</label>
+    <textarea id="prestartInfo"></textarea>
+    
+    <label>Post-submit Message</label>
+    <textarea id="postsubmitInfo"></textarea>
+    <div class="checkbox">
+       <input type="checkbox" id="showscore">
+      <label for="showscore">Show Score on Submit</label>
+    </div>
+
+<div class="checkbox">
+  <input type="checkbox" id="published">
+  <label for="published">Published</label>
+</div>
+
+<button id="saveBtn">Save</button>
+
+  </div>  <script type="module">
+    // Firebase Imports
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+    import { getFirestore, getDoc, doc, setDoc } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-analytics.js";
+  // TODO: Add SDKs for Firebase products that you want to use
+  // https://firebase.google.com/docs/web/setup#available-libraries
+
+  // Your web app's Firebase configuration
+  // For Firebase JS SDK v7.20.0 and later, measurementId is optional
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWe6LmmWUGlWHv0zb13I6d0bGODfoRQtQ",
+    authDomain: "nagari-polyclinic.firebaseapp.com",
+    projectId: "nagari-polyclinic",
+    storageBucket: "nagari-polyclinic.firebasestorage.app",
+    messagingSenderId: "145295689654",
+    appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
+    measurementId: "G-XL6Y1PB0N5"
+  };
+
+
+
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+ const analytics = getAnalytics(app);
+  
+    // Programs Array
+    const programs = [
+      "Digital Literacy Executive Class",
+      "Use of AI Executive Class"
+    ];
+
+    const programSelect = document.getElementById("program");
+
+    // Populate Programs
+    programs.forEach(p => {
+      const option = document.createElement("option");
+      option.value = p;
+      option.textContent = p;
+      programSelect.appendChild(option);
+    });
+
+    // Generate ID
+    function generateId() {
+      return Date.now().toString();
+    }
+
+  
+  const params = new URLSearchParams(window.location.search);
+  let testId = params.get('testId');
+    // Save Test
+    document.getElementById("saveBtn").addEventListener("click", async () => {
+      const name = document.getElementById("name").value.trim();
+      if (!name) {
+        alert("Cannot create unnamed test");
+        return;
+      }
+      const program = document.getElementById("program").value.trim();
+      const start = document.getElementById("start").value;
+      const end = document.getElementById("end").value;
+      const psw = document.getElementById("psw").value;
+      const published = document.getElementById("published").checked;
+      const showScore = document.getElementById("showscore").checked;
+      const prestartInfo = document.getElementById("prestartInfo").value || "";
+      const postsubmitInfo = document.getElementById("postsubmitInfo").value || "";
+      const duration = {};
+      duration.hour = document.getElementById("hour").value;
+      duration.min = document.getElementById("min").value;
+      duration.sec = document.getElementById("sec").value;
+      
+
+      const admin = "CURRENT_ADMIN_ID"; // Replace dynamically if using auth
+
+      testId = testId || generateId();
+      let test = {};
+      const testData = {
+        name: name,
+        for: program,
+        startingTimestamp: new Date(start).getTime(),
+        endingTimestamp: new Date(end).getTime(),
+        questionsetRef: null,
+        published: published,
+        admin: admin,
+        password: psw,
+        prestartInfo,
+        postsubmitInfo,
+        showScore,
+        duration
+      };
+
+      try {
+        await setDoc(doc(db, "tests", testId), testData);
+        alert("Test created/updated successfully!");
+      } catch (error) {
+        console.error(error);
+        alert("Error creating test");
+      }
+    });
+  
+  
+  function render(test = {}) {
+  // Defensive defaults
+  const {
+    name = "",
+    for: program = "",
+    startingTimestamp = null,
+    endingTimestamp = null,
+    published = false,
+    password = "1111",
+    showScore = false,
+    prestartInfo = "",
+    postsubmitInfo = "",
+    duration = {hour: "00", min: "00", sec:"00"}
+  } = test;
+    
+
+  // Populate inputs
+  document.getElementById("name").value = name;
+  document.getElementById("program").value = program;
+  document.getElementById("psw").value = password;
+  document.getElementById("showscore").checked = showScore;
+  document.getElementById("prestartInfo").value = prestartInfo;
+  document.getElementById("postsubmitInfo").value  = postsubmitInfo;
+  document.getElementById("hour").value = duration.hour;
+  document.getElementById("min").value = duration.min;
+  document.getElementById("sec").value = duration.sec;
+      
+
+  // Convert timestamps → datetime-local format
+  if (startingTimestamp) {
+    document.getElementById("start").value =
+      new Date(startingTimestamp).toISOString().slice(0, 16);
+  }
+
+  if (endingTimestamp) {
+    document.getElementById("end").value =
+      new Date(endingTimestamp).toISOString().slice(0, 16);
+  }
+
+  document.getElementById("published").checked = published;
+}
+   load();
+  
+  async function load() { 
+    if (!testId) {render()}return;
+    const ref = doc(db, 'tests', testId); 
+    const snap = await getDoc(ref); 
+    let test = {};
+    if (snap.exists()) { test = snap.data()|| {} } 
+    render(test); 
+  }
+
+  </script></body>
+</html>

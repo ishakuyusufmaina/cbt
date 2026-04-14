@@ -1,0 +1,113 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Submissions</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f5f7fb; }header { background:#1e3a8a; color:#fff; padding:15px; }
+header h2 { margin:0; font-size:18px; }
+header p { margin:3px 0; font-size:13px; }
+
+.container { padding:15px; }
+
+table { width:100%; border-collapse:collapse; background:#fff; border-radius:8px; overflow:hidden; }
+th, td { padding:10px; border-bottom:1px solid #ddd; text-align:left; font-size:14px; }
+th { background:#f1f5f9; }
+
+@media(max-width:600px){
+  th, td { font-size:12px; padding:8px; }
+}
+
+  </style>
+</head>
+<body><header>
+  <h2 id="testName"></h2>
+  <p id="program"></p>
+  <p id="time"></p>
+</header><div class="container">
+  <table>
+    <thead>
+      <tr>
+        <th>S/N</th>
+        <th>Participant ID</th>
+        <th>Participant Name</th>
+        <th>Score (%)</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div><script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, collection, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWe6LmmWUGlWHv0zb13I6d0bGODfoRQtQ",
+    authDomain: "nagari-polyclinic.firebaseapp.com",
+    projectId: "nagari-polyclinic",
+    storageBucket: "nagari-polyclinic.firebasestorage.app",
+    messagingSenderId: "145295689654",
+    appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
+    measurementId: "G-XL6Y1PB0N5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const params = new URLSearchParams(window.location.search);
+  const testId = params.get('testId');
+
+  let questions = [];
+
+  function format(ts) {
+    return new Date(ts).toLocaleString();
+  }
+
+  function calculateScore(responses) {
+    let correct = 0;
+
+    responses.forEach((res, i) => {
+      if (res === questions[i].answer) correct++;
+    });
+
+    return ((correct / questions.length) * 100).toFixed(2);
+  }
+
+  async function load() {
+    // Load test
+    const testSnap = await getDoc(doc(db, 'tests', testId));
+    const test = testSnap.data();
+
+    document.getElementById('testName').textContent = test.name;
+    document.getElementById('program').textContent = test.for;
+    document.getElementById('time').textContent = `Start: ${format(test.startingTimestamp)} | End: ${format(test.endingTimestamp)}`;
+
+    // Load questions
+    const qSnap = await getDoc(doc(db, 'questions', testId));
+    questions = qSnap.data().questions || [];
+
+    // Load submissions
+    const q = query(collection(db, 'submissions'), where('testId', '==', testId));
+    const snap = await getDocs(q);
+
+    const tbody = document.getElementById('tbody');
+    let i = 1;
+
+    snap.forEach(doc => {
+      const sub = doc.data();
+      const score = calculateScore(sub.responses);
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i++}</td>
+        <td>${sub.participant.id}</td>
+        <td>${sub.participant.name}</td>
+        <td>${score}%</td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  load();
+</script></body>
+</html>
