@@ -1,0 +1,152 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Participants</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f5f7fb; }header { background:#1e3a8a; color:#fff; padding:15px; }
+
+.container { padding:15px; }
+
+.form, .filters, .list { background:#fff; padding:15px; border-radius:10px; margin-bottom:15px; }
+
+input, select { width:100%; padding:8px; margin:6px 0; border-radius:6px; border:1px solid #ccc; }
+
+button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; }
+.add { background:#16a34a; color:#fff; }
+
+table { width:100%; border-collapse:collapse; }
+th, td { padding:10px; border-bottom:1px solid #ddd; font-size:14px; }
+th { background:#f1f5f9; }
+
+@media(max-width:600px){ th, td { font-size:12px; } }
+
+  </style>
+</head>
+<body><header>
+  <h2>Participants</h2>
+</header><div class="container">  <div class="form">
+    <h3>Create Participant</h3>
+    <input type="text" id="name" placeholder="Full Name" /><select id="gender">
+  <option value="">Select Gender</option>
+  <option value="male">Male</option>
+  <option value="female">Female</option>
+</select>
+
+<input type="text" id="pid" placeholder="Participant ID" />
+
+<select id="program">
+  <option value="">Select Program</option>
+</select>
+
+<button class="add" id="createBtn">Create</button>
+
+  </div>  <div class="filters">
+    <h3>Search / Filter</h3>
+    <input type="text" id="searchName" placeholder="Search by name" />
+    <input type="text" id="searchId" placeholder="Search by ID" />
+    <select id="filterProgram">
+      <option value="">All Programs</option>
+    </select>
+  </div>  <div class="list">
+    <table>
+      <thead>
+        <tr>
+          <th>S/N</th>
+          <th>Name</th>
+          <th>Gender</th>
+          <th>ID</th>
+          <th>Program</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div></div><script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, setDoc, doc, collection, addDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWe6LmmWUGlWHv0zb13I6d0bGODfoRQtQ",
+    authDomain: "nagari-polyclinic.firebaseapp.com",
+    projectId: "nagari-polyclinic",
+    storageBucket: "nagari-polyclinic.firebasestorage.app",
+    messagingSenderId: "145295689654",
+    appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
+    measurementId: "G-XL6Y1PB0N5"
+  };
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const programs = ["Digital Literacy Executive Class", "Use of AI Executive Class"];
+
+  const programSelect = document.getElementById('program');
+  const filterProgram = document.getElementById('filterProgram');
+
+  programs.forEach(p => {
+    const opt1 = document.createElement('option');
+    opt1.value = p; opt1.textContent = p;
+    programSelect.appendChild(opt1);
+
+    const opt2 = document.createElement('option');
+    opt2.value = p; opt2.textContent = p;
+    filterProgram.appendChild(opt2);
+  });
+
+  const nameEl = document.getElementById('name');
+  const genderEl = document.getElementById('gender');
+  const idEl = document.getElementById('pid');
+  const programEl = document.getElementById('program');
+
+  document.getElementById('createBtn').onclick = async () => {
+    if (!nameEl.value || !idEl.value || !programEl.value) return alert('All fields required');
+
+    const participant = {
+      fullName: nameEl.value,
+      name: nameEl.value,
+      gender: genderEl.value,
+      id: idEl.value,
+      program: programEl.value
+    };
+
+    await setDoc(doc(db, 'participants', participant.id), participant);
+    alert('Created');
+    load();
+  };
+
+  const searchName = document.getElementById('searchName');
+  const searchId = document.getElementById('searchId');
+
+  async function load() {
+    const snap = await getDocs(collection(db, 'participants'));
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+
+    let i = 1;
+
+    snap.forEach(doc => {
+      const p = doc.data();
+
+      if (searchName.value && !p.fullName.toLowerCase().includes(searchName.value.toLowerCase())) return;
+      if (searchId.value && !p.id.includes(searchId.value)) return;
+      if (filterProgram.value && p.program !== filterProgram.value) return;
+
+      const tr = document.createElement('tr');
+      tr.innerHTML = `
+        <td>${i++}</td>
+        <td>${p.fullName}</td>
+        <td>${p.gender}</td>
+        <td>${p.id}</td>
+        <td>${p.program}</td>
+      `;
+
+      tbody.appendChild(tr);
+    });
+  }
+
+  searchName.oninput = load;
+  searchId.oninput = load;
+  filterProgram.onchange = load;
+
+  load();
+</script></body>
+</html>

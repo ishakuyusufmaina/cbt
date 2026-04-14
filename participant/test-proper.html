@@ -1,0 +1,273 @@
+<!DOCTYPE html><html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Test</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin:0; background:#f5f7fb; }header { padding:12px; background:#1e3a8a; color:#fff; }
+header h3 { margin:0; font-size:16px; }
+header small { display:block; font-size:12px; opacity:0.9; }
+#timer { margin-top:5px; font-weight:bold; }
+
+.container { display:flex; flex-direction:column; }
+
+.main { padding:15px; }
+.side { background:#fff; padding:12px; border-top:1px solid #ddd; }
+
+.question { background:#fff; padding:15px; border-radius:10px; }
+
+.options { margin-top:10px; }
+.option { margin-bottom:10px; font-size:14px; }
+
+.nav { margin-top:15px; display:flex; justify-content:space-between; }
+
+.numbers { margin-top:10px; display:flex; flex-wrap:wrap; }
+.numbers span { margin:3px; padding:6px 10px; background:#ddd; cursor:pointer; border-radius:4px; font-size:12px; }
+.active { background:#1e3a8a; color:#fff; }
+
+button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; font-size:14px; }
+.submit { background:#16a34a; color:#fff; width:100%; margin-top:10px; }
+
+/* Desktop */
+@media(min-width:768px){
+  .container { flex-direction:row; }
+  .main { flex:3; }
+  .side { flex:1; border-left:1px solid #ddd; border-top:none; }
+}
+
+  </style>
+</head>
+<body><header>
+  <h3 id="testTitle"></h3>
+  <small id="testProgram"></small>
+    <p>Name: <span id="pname"></span></p>
+    <p>ID: <span id="pid"></span></p>
+  
+  <div id="timer"></div>
+</header>
+  <div class="container">
+  <div class="main">
+    <div id="questionContainer"></div><div class="nav">
+  <button onclick="prev()">Prev</button>
+  <button onclick="next()">Next</button>
+</div>
+
+<div class="numbers" id="numbers"></div>
+
+  </div>  
+  <div class="side">
+    
+    <button class="submit" onclick="submitTest()">Submit</button>
+
+  </div>
+</div><script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWe6LmmWUGlWHv0zb13I6d0bGODfoRQtQ",
+    authDomain: "nagari-polyclinic.firebaseapp.com",
+    projectId: "nagari-polyclinic",
+    storageBucket: "nagari-polyclinic.firebasestorage.app",
+    messagingSenderId: "145295689654",
+    appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
+    measurementId: "G-XL6Y1PB0N5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  const params = new URLSearchParams(window.location.search);
+  const testId = params.get('testId');
+  const participantId = params.get('participantId');
+  let submDoc = await getDoc(doc(db,"submissions", testId +"_"+ participantId));
+  const submission = submDoc.data();
+  let questions = [];
+  let responses = [];
+  let current = 0;
+  let testData = null;
+  
+  await load();
+  let test = testData;
+  if (submission.submitted) {
+      alert("You cannot take this test twice");
+       window.history.back();
+   
+     }
+     let startedSince = minutesAgo(submission.startedAt);
+     let testDuration = durationToMinutes(test.duration);
+     if (testDuration - startedSince <= 0){
+       alert("Timeout");
+       window.history.back();
+      
+     }
+
+  
+
+ let participantSnap = await getDoc(doc(db, "participants", participantId));
+ let participant = participantSnap.data();
+       
+  document.getElementById('pname').textContent = participant.name;
+  document.getElementById('pid').textContent = participant.id;
+
+  function renderQuestion() {
+    const q = questions[current];
+
+    const html = `
+      <div class="question">
+        <h3>Question ${current + 1}</h3>
+        <p>${q.prompt}</p>
+
+        <div class="options">
+          ${q.options.map((opt, i) => `
+            <div class="option">
+              <input type="radio" name="q" ${responses[current] === i ? 'checked' : ''}
+                onchange="selectOption(${i})" /> ${opt}
+            </div>
+          `).join('')}
+        </div>
+      </div>
+    `;
+
+    document.getElementById('questionContainer').innerHTML = html;
+    renderNumbers();
+  }
+
+  window.selectOption = (i) => {
+    responses[current] = i;
+  };
+
+  window.next = () => {
+    if (current < questions.length - 1) {
+      current++;
+      renderQuestion();
+    }
+  };
+
+  window.prev = () => {
+    if (current > 0) {
+      current--;
+      renderQuestion();
+    }
+  };
+
+  function renderNumbers() {
+    const div = document.getElementById('numbers');
+    div.innerHTML = '';
+
+    questions.forEach((_, i) => {
+      const span = document.createElement('span');
+      span.textContent = i + 1;
+      if (i === current) span.classList.add('active');
+      span.onclick = () => { current = i; renderQuestion(); };
+      div.appendChild(span);
+    });
+  }
+
+  function startTimer(test, submission) {
+    const el = document.getElementById('timer');
+
+   let i = setInterval(() => {
+      let t = getRemainingTime(submission.startedAt, test.duration);
+      let startedSince = minutesAgo(submission.startedAt);
+     let testDuration = durationToMinutes(test.duration);
+     if (t.isUp){
+       el.textContent = t.text;
+       clearInterval(i);
+       submitTest(true);
+       return;
+     }
+      
+     el.textContent = t.text;
+    }, 1000);
+  }
+
+  window.submitTest = async (t) => {
+    const submission = {
+      testId,
+      responses,
+      program: testData.for,
+      participant,
+      startingTimestamp: testData.startingTimestamp,
+      endingTimestamp: testData.endingTimestamp,
+      submitted: true
+    };
+    let conf = t? true : window.comfirm("You cannot undo this action. Are sure you want to submit? ");
+    if (!conf) return;
+    document.querySelector(".main").innerHTML = "Submitting.."
+    await setDoc(doc(db, 'submissions', testId + '_' + participant.id), submission, {merge:true});
+    window.location.href = `postsubmit.html?testId=${testId}&participantId=${participantId}`
+    
+  };
+
+  async function load() {
+    const testSnap = await getDoc(doc(db, 'tests', testId));
+    testData = testSnap.data();
+
+    // Set header info
+    document.getElementById('testTitle').textContent = testData.name;
+    document.getElementById('testProgram').textContent = testData.for;
+
+    const qSnap = await getDoc(doc(db, 'questions', testId));
+    questions = qSnap.data().questions || [];
+
+    responses = new Array(questions.length).fill(null);
+
+    startTimer(testData, submission);
+    renderQuestion();
+  }
+
+  
+       
+       
+       function getRemainingTime(startedAt, duration) {
+  if (!startedAt) return { text: "Not started", ms: 0, isUp: false };
+
+  const start = startedAt.toDate();
+  const now = new Date();
+
+  const h = parseInt(duration.hour || "0", 10);
+  const m = parseInt(duration.min || "0", 10);
+  const s = parseInt(duration.sec || "0", 10);
+
+  const durationMs = (h * 3600 + m * 60 + s) * 1000;
+
+  const endTime = start.getTime() + durationMs;
+  const remainingMs = endTime - now.getTime();
+
+  if (remainingMs <= 0) {
+    return { text: "Time up", ms: 0, isUp: true };
+  }
+
+  const totalSec = Math.floor(remainingMs / 1000);
+  const hours = Math.floor(totalSec / 3600);
+  const minutes = Math.floor((totalSec % 3600) / 60);
+  const seconds = totalSec % 60;
+
+  const pad = (n) => String(n).padStart(2, "0");
+
+  let text;
+  if (hours > 0) {
+    text = `${pad(hours)}:${pad(minutes)}:${pad(seconds)}`;
+  } else {
+    text = `${pad(minutes)}:${pad(seconds)}`; // cleaner when < 1hr
+  }
+
+  return { text, ms: remainingMs, isUp: false };
+}
+       
+       
+         
+  function durationToMinutes(duration) {
+  const hours = parseInt(duration.hour || "0", 10);
+  const minutes = parseInt(duration.min || "0", 10);
+  const seconds = parseInt(duration.sec || "0", 10);
+
+  return hours * 60 + minutes + (seconds / 60);
+}
+  
+  function minutesAgo(timestamp) {
+  return Math.floor((new Date() - timestamp.toDate()) / (1000 * 60));
+}
+</script></body>
+</html>

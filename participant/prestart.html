@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Pre Start Test</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background: #f5f5f5;
+    }
+    .card {
+      max-width: 600px;
+      margin: auto;
+      background: #fff;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+    h2 { margin-bottom: 10px; }
+    p { margin: 6px 0; }
+    .btn {
+      padding: 10px 15px;
+      margin: 10px 5px 0 0;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    .start { background: green; color: white; }
+    .back { background: gray; color: white; }
+    .danger { color: red; font-weight: bold; }
+  </style>
+</head>
+<body>
+
+<div class="card">
+  <h2 id="title">Loading...</h2>
+  <div id="content"></div>
+
+  <button class="btn back" onclick="history.back()">Back</button>
+  <button id="startBtn" class="btn start" style="display:none;">Start Test</button>
+</div>
+ 
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, doc, where, query, collection, getDoc, getDocs, updateDoc, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // 🔹 TODO: Replace with your config
+const firebaseConfig = {
+    apiKey: "AIzaSyDWe6LmmWUGlWHv0zb13I6d0bGODfoRQtQ",
+    authDomain: "nagari-polyclinic.firebaseapp.com",
+    projectId: "nagari-polyclinic",
+    storageBucket: "nagari-polyclinic.firebasestorage.app",
+    messagingSenderId: "145295689654",
+    appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
+    measurementId: "G-XL6Y1PB0N5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // 🔹 Get URL params
+  const params = new URLSearchParams(window.location.search);
+  const testId = params.get("testId");
+  const participantId = params.get("participantId");
+
+  const submissionId = `${testId}_${participantId}`;
+console.log(submissionId);
+  const content = document.getElementById("content");
+  const title = document.getElementById("title");
+  const startBtn = document.getElementById("startBtn");
+
+  function durationToMs(d) {
+    const h = parseInt(d.hour || "0");
+    const m = parseInt(d.min || "0");
+    const s = parseInt(d.sec || "0");
+    return (h * 3600 + m * 60 + s) * 1000;
+  }
+ 
+  async function init() {
+    try {
+      // 🔹 Fetch data
+      const participantRef = doc(db, "participants", submissionId);
+      const testRef = doc(db, "tests", testId);
+      const submissionRef = doc(db, "submissions", submissionId);
+
+      /*const [participantSnap, testSnap, submissionSnap] = await Promise.all([
+        getDoc(participantRef),
+        getDoc(testRef),
+        getDoc(submissionRef)
+      ]);*/
+      let participantSnap;   //await getDoc(participantRef);
+      let participantDocs = await getDocs(query(collection(db, "participants"), where("id", "==", participantId)));
+      participantDocs.forEach(d=> participantSnap = d);
+
+      let testSnap = await getDoc(testRef);
+      let submissionSnap = await getDoc(submissionRef);
+      // alert();
+      if (!participantSnap.exists() || !testSnap.exists() || !submissionSnap.exists()) {
+        content.innerHTML = "<p class='danger'>Invalid data</p>";
+        return;
+      }
+
+      const participant = participantSnap.data();
+      const test = testSnap.data();
+      const submission = submissionSnap.data();
+
+      title.innerText = test.name;
+
+      // ❌ Already submitted
+      if (submission.submitted) {
+        content.innerHTML = `
+          <p class="danger">You have already submitted this test.</p>
+          <p>You cannot take it again.</p>
+        `;
+        return;
+      }
+
+      // 🔹 Set startedAt if not exists
+      if (!submission.startedAt) {
+        await updateDoc(submissionRef, {
+          startedAt: serverTimestamp()
+        });
+      }
+
+      // 🔹 Check time elapsed
+      let startedAt = submission.startedAt?.toDate();
+
+      // If just set, reload to get actual server time
+      if (!startedAt) {
+        location.reload();
+        return;
+      }
+
+      const now = new Date();
+      const durationMs = durationToMs(test.duration);
+      const elapsed = now - startedAt;
+
+      if (elapsed > durationMs) {
+        content.innerHTML = `
+          <p class="danger">Time has elapsed for this test.</p>
+          <p>You can no longer start it.</p>
+        `;
+        return;
+      }
+
+      // ✅ Show prestart info
+      content.innerHTML = `
+        <p><strong>Name:</strong> ${participant.name}</p>
+        <p><strong>ID:</strong> ${participant.id}</p>
+        <p><strong>Program:</strong> ${test.for}</p>
+        <p><strong>Test:</strong> ${test.name}</p>
+        <p><strong>Duration:</strong> ${test.duration.hour}h ${test.duration.min}m ${test.duration.sec}s</p>
+        <hr/>
+        <p>${test.prestartInfo || ""}</p>
+        <p class="danger">⚠️ Once you start, the test cannot be undone.</p>
+      `;
+
+      // ✅ Enable start button
+      startBtn.style.display = "inline-block";
+
+      startBtn.onclick = () => {
+        if (confirm("Are you sure you want to start the test?")) {
+          window.location.href = `test-proper.html?testId=${testId}&participantId=${participantId}&startedAt=${startedAt}`;
+        }
+      };
+
+    } catch (err) {
+      console.error(err);
+      content.innerHTML = "<p class='danger'>Error loading page</p>";
+    }
+  }
+
+  init();
+</script>
+
+</body>
+</html>

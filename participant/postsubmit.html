@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Post Submission</title>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f5f5f5;
+      padding: 20px;
+    }
+
+    .card {
+      max-width: 700px;
+      margin: auto;
+      background: white;
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+    }
+
+    h2 { margin-bottom: 10px; }
+
+    .info {
+      margin: 8px 0;
+    }
+
+    .score {
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 15px;
+    }
+
+    .danger { color: red; }
+
+    a.button {
+      display: inline-block;
+      margin-top: 20px;
+      padding: 10px 15px;
+      background: #333;
+      color: white;
+      text-decoration: none;
+      border-radius: 5px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="card">
+  <h2 id="title">Loading...</h2>
+
+  <div id="content"></div>
+
+  <a href="login.html" class="button">Home</a>
+</div>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import {
+    getFirestore, doc, getDoc
+  } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+  // 🔹 Firebase config (replace with yours)
+  const firebaseConfig = {
+    apiKey: "AIzaSyDWe6LmmWUGlWHv0zb13I6d0bGODfoRQtQ",
+    authDomain: "nagari-polyclinic.firebaseapp.com",
+    projectId: "nagari-polyclinic",
+    storageBucket: "nagari-polyclinic.firebasestorage.app",
+    messagingSenderId: "145295689654",
+    appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
+    measurementId: "G-XL6Y1PB0N5"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+
+  // 🔹 URL params
+  const params = new URLSearchParams(window.location.search);
+  const testId = params.get("testId");
+  const participantId = params.get("participantId");
+
+  const submissionId = `${testId}_${participantId}`;
+
+  const title = document.getElementById("title");
+  const content = document.getElementById("content");
+
+  function calculateScore(questions, responses) {
+    let score = 0;
+    questions.forEach((q, index) => {
+      if (responses[index] === q.answer) {
+        score++;
+      }
+    });
+
+    return score;
+  }
+
+  async function init() {
+    try {
+      const testRef = doc(db, "tests", testId);
+      console.log(testId);
+      const participantRef = doc(db, "participants", participantId);
+      const submissionRef = doc(db, "submissions", submissionId);
+      const  submissionSnap = await getDoc(submissionRef);
+   
+     const testSnap = await getDoc(testRef);
+      const participantSnap= await getDoc(participantRef)
+     console.log(testSnap.exists());
+      if (!testSnap.exists() || !participantSnap.exists() || !submissionSnap.exists()) {
+        content.innerHTML = "<p class='danger'>Invalid submission data</p>";
+        return;
+      }
+
+      const test = testSnap.data();
+      const participant = participantSnap.data();
+      const submission = submissionSnap.data();
+
+      title.innerText = `Result: ${test.name}`;
+
+      const questions = test.questions || [];
+      const responses = submission.responses || [];
+
+      const total = questions.length;
+      const score = calculateScore(questions, responses);
+      const percent = total > 0 ? ((score / total) * 100).toFixed(2) : 0;
+
+      let html = `
+        <div class="info"><strong>Name:</strong> ${participant.name}</div>
+        <div class="info"><strong>ID:</strong> ${participant.id}</div>
+        <div class="info"><strong>Program:</strong> ${test.for}</div>
+        <div class="info"><strong>Total Questions:</strong> ${total}</div>
+      `;
+
+      if (test.showScore) {
+        html += `
+          <div class="score">
+            Score: ${score} / ${total} (${percent}%)
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="score">
+            Results are hidden by instructor.
+          </div>
+        `;
+      }
+
+      html += `
+        <p style="margin-top:15px;">
+          Thank you for completing the test.
+        </p>
+      `;
+
+      content.innerHTML = html;
+
+    } catch (err) {
+      console.error(err);
+      content.innerHTML = "<p class='danger'>Error loading result</p>";
+    }
+  }
+
+  init();
+</script>
+
+</body>
+</html>

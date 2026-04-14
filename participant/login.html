@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login Page</title>
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: Arial, sans-serif;
+    }
+
+    body {
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+    }
+
+    .login-container {
+      background: #fff;
+      padding: 30px;
+      border-radius: 10px;
+      width: 100%;
+      max-width: 350px;
+      box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+    }
+
+    .login-container h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #333;
+    }
+
+    .form-group {
+      margin-bottom: 15px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: #555;
+    }
+
+    .form-group input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      outline: none;
+      transition: 0.3s;
+    }
+
+    .form-group input:focus {
+      border-color: #4facfe;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 10px;
+      background: #4facfe;
+      border: none;
+      color: #fff;
+      font-size: 16px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .btn:hover {
+      background: #00c6ff;
+    }
+
+    .error {
+      color: red;
+      font-size: 14px;
+      text-align: center;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="login-container">
+    <h2>Login</h2>
+
+    <div class="form-group">
+      <label>ID</label>
+      <input type="text" id="id" placeholder="Enter your ID">
+    </div>
+
+    <div class="form-group">
+      <label>Password</label>
+      <input type="number" id="password" placeholder="Enter your exam password">
+    </div>
+
+    <button class="btn" id="loginBtn">Login</button>
+
+    <div class="error" id="errorMsg"></div>
+  </div>
+
+  <!-- Firebase SDK -->
+ 
+
+  <script type='module'>
+ 
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-app.js";
+    import { getFirestore, where, query, getDoc, getDocs, doc, setDoc , collection} from "https://www.gstatic.com/firebasejs/12.12.0/firebase-firestore.js";
+
+    import { getAnalytics } from "https://www.gstatic.com/firebasejs/12.12.0/firebase-analytics.js";
+const firebaseConfig = {
+    apiKey: "AIzaSyDWe6LmmWUGlWHv0zb13I6d0bGODfoRQtQ",
+    authDomain: "nagari-polyclinic.firebaseapp.com",
+    projectId: "nagari-polyclinic",
+    storageBucket: "nagari-polyclinic.firebasestorage.app",
+    messagingSenderId: "145295689654",
+    appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
+    measurementId: "G-XL6Y1PB0N5"
+  };
+
+
+    // Initialize Firebase
+   const app = initializeApp(firebaseConfig);
+  const analytics = getAnalytics(app);
+  const db = getFirestore(app);
+  
+    const params = new URLSearchParams(window.location.search);
+  let testId = params.get('testId');
+  let program = params.get('program');
+
+loginBtn.onclick = login;
+    // Login Function
+   async function  login() {
+      const id = document.getElementById("id").value;
+      const password = document.getElementById("password").value;
+      const errorMsg = document.getElementById("errorMsg");
+      //is there such a user given the id and the program?
+      let participantDocs = await getDocs(query(collection(db, "participants"), where("id", "==", id)));
+     let participantDoc;
+     participantDocs.forEach(d=> participantDoc = d);
+     if (!participantDoc.exists()){
+       errorMsg.innerText = "No record of candidate found.";
+       return;
+     }
+     let participant = participantDoc.data();
+     console.log(participant.program);
+     let testDoc = await getDoc(doc(db, "tests", testId));
+     if (!testDoc.exists()){
+       errorMsg.innerText = "No record of test found.";
+       return;
+     }
+     let test = testDoc.data();
+     if (test.for !== participant.program){
+       errorMsg.innerText = "Candidate - test mismatch error.";
+      return;
+     }
+     
+    let submSnap = await getDoc(doc(db, "submissions", testId + "_" + participant.id));
+     let submission = {
+       testId,
+      responses: [],
+      program: test.for,
+      participant,
+      startingTimestamp: test.startingTimestamp,
+      endingTimestamp: test.endingTimestamp,
+       submitted: false
+     }
+     if (!submSnap.exists()){
+       await setDoc(doc(db, "submissions", testId + "_" + participant.id), submission);
+     } else {
+       submission = submSnap.data();
+     }
+     
+      window.location.href = `prestart.html?testId=${testId}&participantId=${participant.id}`;
+     
+      
+    }
+  
+  function durationToMinutes(duration) {
+  const hours = parseInt(duration.hour || "0", 10);
+  const minutes = parseInt(duration.min || "0", 10);
+  const seconds = parseInt(duration.sec || "0", 10);
+
+  return hours * 60 + minutes + (seconds / 60);
+}
+  
+  function minutesAgo(timestamp) {
+  return Math.floor((new Date() - timestamp.toDate()) / (1000 * 60));
+}
+  </script>
+
+</body>
+</html>

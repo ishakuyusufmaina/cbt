@@ -25,15 +25,13 @@ select { padding:8px; border-radius:6px; border:1px solid #ccc; }
 .links a { margin-right:10px; color:#1e3a8a; text-decoration:none; font-weight:bold; }
 .disabled { pointer-events:none; color:#aaa !important; }
 
+  .filters, a[href="create-test.html"]{display: none}
   </style>
 </head>
 <body><header>
-  <h2>DH CBT</h2>
+  <h2>Welcome to DH CBT</h2>
   <a href="create-test.html">+ Create New Test</a>
-
 </header>
- <a href="participants.html">Participants</a>
-
   <div class="filters">
   <select id="programFilter">
     <option value="">All Programs</option>
@@ -62,6 +60,7 @@ select { padding:8px; border-radius:6px; border:1px solid #ccc; }
     appId: "1:145295689654:web:b97fb7bfe514ea47dea317",
     measurementId: "G-XL6Y1PB0N5"
   };
+  
 
   const app = initializeApp(firebaseConfig);
   const db = getFirestore(app);
@@ -101,8 +100,8 @@ select { padding:8px; border-radius:6px; border:1px solid #ccc; }
       constraints.push(where("for", "==", programFilter.value));
     }
 
-    if (publishFilter.value) {
-      constraints.push(where("published", "==", publishFilter.value === 'true'));
+    if (true /*publishFilter.value*/) {
+      constraints.push(where("published", "==", true));
     }
 
     const finalQuery = constraints.length ? query(q, ...constraints) : q;
@@ -121,12 +120,12 @@ select { padding:8px; border-radius:6px; border:1px solid #ccc; }
 
       const card = document.createElement('div');
       card.className = 'card';
-
+      console.log(status);
       card.innerHTML = `
         <div>
-          <span class="badge ${data.published ? 'published' : 'unpublished'}">
+          <!--span class="badge ${data.published ? 'published' : 'unpublished'}">
             ${data.published ? 'Published' : 'Unpublished'}
-          </span>
+          </span-->
           <span class="badge status-${status}">${status}</span>
         </div>
 
@@ -135,16 +134,17 @@ select { padding:8px; border-radius:6px; border:1px solid #ccc; }
         <p><strong>${status === 'upcoming' ? 'Starts' : 'Started'}:</strong> ${formatDate(data.startingTimestamp)}</p>
         <p><strong>${status === 'past' ? 'Ended' : 'Ends'}:</strong> ${formatDate(data.endingTimestamp)}</p>
 
-        <div class="links">
-          <a href="questions.html?testId=${id}" class="${status === 'ongoing'}">Questions</a>
+        <!--div class="links">
+          <a href="questions.html?testId=${id}" class="${status === 'ongoing' ? 'disabled' : ''}">Questions</a>
           <a href="submissions.html?testId=${id}">Submissions</a>
           <a href="test-proper.html?testId=${id}">Preview</a>
 
-        </div>
+        </div-->
       `;
 
       card.addEventListener('click', () => {
-        window.location.href = `create-test.html?testId=${id}`;
+        if (status!=="ongoing") return;
+        window.location.href = `login.html?testId=${id}&program=${data.for}`;
       });
 
       container.appendChild(card);
