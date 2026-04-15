@@ -192,7 +192,7 @@ button { padding:8px 12px; border:none; border-radius:6px; cursor:pointer; font-
       endingTimestamp: testData.endingTimestamp,
       submitted: true
     };
-    let conf = t? true : window.comfirm("You cannot undo this action. Are sure you want to submit? ");
+    let conf = t? true : window.confirm("You cannot undo this action. Are sure you want to submit? ");
     if (!conf) return;
     document.querySelector(".main").innerHTML = "Submitting.."
     await setDoc(doc(db, 'submissions', testId + '_' + participant.id), submission, {merge:true});
